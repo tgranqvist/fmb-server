@@ -1,11 +1,10 @@
 const net = require('net');
 
-const PORT = process.env.PORT || 4242;
+const AUTH_PREAMBLE = Buffer.from('000f', 'hex');
+const DATA_PREAMBLE = Buffer.from('00000000', 'hex');
+const AUTH_OK = Buffer.from('01', 'hex');
 
-const devices = new Set();
 const connections = new Map();
-
-devices.add('359633100351209');
 
 const server = net.createServer(socket => {
     socket.on('error', e => {
@@ -13,79 +12,79 @@ const server = net.createServer(socket => {
         socket.close();
     });
 
-    //socket.on('readable', parse);
-    socket.on('data', function(buffer) {
-        //console.log(this);
-        console.log(buffer);
-        console.log(buffer.length);
-        this.write(Buffer.from('01', 'hex'));
-    });
+    socket.on('data', parse);
     socket.on('end', cleanup);
 });
 
-server.listen(PORT, () => {
-    console.log(`Server started on port: ${PORT}`)
-});
-
-
-function parse() {
-    const connection = connections.get(this);
-    if (connection) {
-        // Device already authenticated
-        const socket = connection.socket;
-
-	console.log('Doing xfer');
-
-        if (!connection.waiting) {
-            console.log('\tReading length');
-
-            const tmp = socket.read(8);
-            if (!tmp) return;
-
-            const contentLength = tmp.slice(4).readUInt32BE();
-            console.log(`Receiving ${contentLength} bytes of data`);
-            const content = socket.read(contentLength);
-
-            if (!content) {
-                connection.waiting = true;
-                connection.contentLength = contentLength;
-
-                return;
-            }
-
-            console.log(content);
-        }
-
-        console.log('\tReading content');
-        if (connection.contentLength < 1) {
-            throw new Error(`Invelid content length ${connection.contentLength}`);
-        }
-
-        const content = socket.read(connection.contentLength);
-        if (!content) {
-            return;
-        }
-        console.log(content);
-    } else {
-	console.log('Doing auth');
-        // Authenticate the device
-        let IMEI = this.read(17);
-        IMEI = IMEI.toString().slice(2);
-
-        if (!devices.has(IMEI)) {
-            throw new Error(`Unknown device ${IMEI}`);
-        }
-        console.log(`Connection from ${IMEI}`);
-
-        connections.set(this, {IMEI, socket: this, waiting: false});
-
-        this.write(Buffer.from('01', 'hex'));
+function parse(buffer) {
+    if (buffer.slice(0, 2).equals(AUTH_PREAMBLE)) {
+        authenticate(buffer, this);
+    } else if (buffer.slice(0, 4).equals(DATA_PREAMBLE)) {
+        readData(buffer, this);
     }
+}
+
+function authenticate(buffer, socket) {
+    const IMEI = buffer.slice(2).toString();
+    console.log(`Authenticated ${IMEI}`);
+
+    // Check IMEI from allowed devices here. Write access log et cetera.
+    socket.write(AUTH_OK);
+}
+
+function readData(buffer, socket) {
+    console.log(`Got ${buffer.length} bytes of data`);
+    console.log(`Data length: ${buffer.readUInt32BE(4)}`);
+    console.log(`Codec ID: ${buffer.readUInt8(8)}`);
+    
+    const numRecords = buffer.readUInt8(9);
+    console.log(`Records: ${numRecords}`);
+
+    buffer = buffer.slice(10); // Discard data read so far
+
+    for (let i = 0; i < numRecords; i++) {
+        /*
+        const timestamp = new Date(Number(buffer.readBigInt64BE()));
+        buffer = buffer.slice(8);
+
+        const priority = buffer.readUInt8();
+        buffer = buffer.slice(1);
+
+        console.log(`Timestamp: ${timestamp}`);
+        console.log(`Prio: ${priority}`);
+        
+        const longitude = buffer.readUInt32BE(4);
+        buffer = buffer.slice(4);
+        const latitude = buffer.readUInt32BE(4);
+        buffer = buffer.slice(4);
+
+        const altitude = buffer.readUInt16BE();
+        buffer = buffer.slice(2);
+
+        const angle = buffer.readUInt16BE();
+        buffer = buffer.slice(2);
+
+        const satellites = buffer.readUInt8();
+        buffer = buffer.slice(1);
+
+        const speed = buffer.readUInt16BE();
+        buffer = buffer.slice(2);
+
+        console.log(`Timestamp: ${timestamp}`);
+        console.log(`Prio: ${priority}`);
+        console.log(`(${latitude};${longitude}) @ ${altitude} msl`);
+        console.log(`Speed: ${speed}`);
+        */
+    }
+    // Acknowledge transferred packets
+    const ackReply = Buffer.from(numRecords.toString(16).padStart(4, '0'), 'hex');
+    console.log(ackReply);
+    socket.write(ackReply);
 }
 
 function cleanup() {
     console.log('Cleaning up');
-    
+
     const connection = connections.get(this);
     if (!connection) return;
 
@@ -94,3 +93,5 @@ function cleanup() {
     socket.close();
     connections.delete(this);
 }
+
+module.exports = server;
