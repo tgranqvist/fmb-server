@@ -31,17 +31,23 @@ sent with the excellent [Packet Sender][packetsender].
 
 ### Example 1
 
+One data record with one each IO element property (1 byte, 2 bytes, 4 byte, and 8 byte).
+
 ```hex
 00 00 00 00 00 00 00 36 08 01 00 00 01 6B 40 D8 EA 30 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 05 02 15 03 01 01 01 42 5E 0F 01 F1 00 00 60 1A 01 4E 00 00 00 00 00 00 00 00 01 00 00 C7 CF
 ```
 
 ### Example 2
 
+One data record with one or two different IO element properties (1 byte, 2 byte).
+
 ```hex
 00 00 00 00 00 00 00 28 08 01 00 00 01 6B 40 D9 AD 80 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 03 02 15 03 01 01 01 42 5E 10 00 00 01 00 00 F2 2A
 ```
 
 ### Example 3
+
+Two data records with one or more different IO element properties (1 byte, 2 byte).
 
 ```hex
 00 00 00 00 00 00 00 43 08 02 00 00 01 6B 40 D5 7B 48 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 01 01 01 00 00 00 00 00 00 01 6B 40 D5 C1 98 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 01 01 01 01 00 00 00 02 00 00 25 2C
