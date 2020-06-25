@@ -1,10 +1,13 @@
 const net = require('net');
+const redis = require('async-redis').createClient();
 const extractors = require('./value-extractors.js');
 
 const AUTH_PREAMBLE = Buffer.from('000f', 'hex');
 const DATA_PREAMBLE = Buffer.from('00000000', 'hex');
 const AUTH_OK = Buffer.from('01', 'hex');
 const AUTH_DENY = Buffer.from('00', 'hex');
+
+const connections = new Map();
 
 const server = net.createServer(socket => {
     socket.on('error', e => {
@@ -17,6 +20,8 @@ const server = net.createServer(socket => {
 });
 
 function parse(buffer) {
+    // In this function `this` is bound to the socket
+
     if (buffer.slice(0, 2).equals(AUTH_PREAMBLE)) {
         authorize(buffer, this);
     } else if (buffer.slice(0, 4).equals(DATA_PREAMBLE)) {
@@ -25,10 +30,15 @@ function parse(buffer) {
 }
 
 function authorize(buffer, socket) {
+    
     const IMEI = buffer.slice(2).toString();
     console.log(`authorized ${IMEI}`);
 
     // Check IMEI from allowed devices here. Write access log et cetera.
+    // For multi-tracker use, shove the socket into a map with value of IMEI or
+    // more info. Later handlers that are bound to the socket can get from that
+    // map and access related attributes that way.
+    connections.put(this, IMEI);
     socket.write(AUTH_OK);
 }
 
@@ -103,10 +113,10 @@ function readData(buffer, socket) {
 }
 
 function readGPSElement(buffer) {
-    const longitude = buffer.readUInt32BE();
+    const longitude = (buffer.readUInt32BE() / 10000000);
     buffer = buffer.slice(4);
 
-    const latitude = buffer.readUInt32BE();
+    const latitude = (buffer.readUInt32BE() / 10000000);
     buffer = buffer.slice(4);
 
     const altitude = buffer.readUInt16BE();
