@@ -9,6 +9,8 @@
   "author": "Tom Granqvist",
   "license": "ISC",
   "dependencies": {
-    "async-redis": "^1.1.7"
+    "async-redis": "^1.1.7",
+    "hashids": "^2.2.1",
+    "redis": "^3.0.2"
   }
 }
